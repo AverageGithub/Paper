@@ -1,0 +1,58 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: AverageGithub <adorjantoto09@gmail.com>
+Date: Wed, 19 Jul 2023 12:50:46 +0200
+Subject: [PATCH] Optimize CraftPlayer#canSee
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index dbdeb913e228651cadf5dbd7ec98afc738c80522..4b5e7b28ef97d5f1179a6411a7f68d29881fcd5f 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -194,6 +194,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     private static final boolean DISABLE_CHANNEL_LIMIT = System.getProperty("paper.disableChannelLimit") != null; // Paper - add a flag to disable the channel limit
+     private long lastSaveTime;
+     // Paper end
++    private boolean hasCanSee = false; // Paper - Optimize CraftPlayer#canSee
+ 
+     public CraftPlayer(CraftServer server, ServerPlayer entity) {
+         super(server, entity);
+@@ -1834,6 +1835,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         invertedPlugins = new HashSet<>();
+         invertedPlugins.add(CraftPlayer.getPluginWeakReference(plugin));
+         this.invertedVisibilityEntities.put(entity.getUniqueId(), invertedPlugins);
++        this.hasCanSee = true;
+ 
+         return true;
+     }
+@@ -1920,7 +1922,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+             return false; // Some other plugins still want the entity inverted
+         }
+         this.invertedVisibilityEntities.remove(entity.getUniqueId());
+-
++        this.hasCanSee = false;
+         return true;
+     }
+ 
+@@ -2023,10 +2025,22 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+ 
+     @Override
+     public boolean canSee(org.bukkit.entity.Entity entity) {
++        // Paper start - Optimize CraftPlayer#canSee
++        if (!this.hasCanSee) {
++            return true;
++        }
++        // Paper end - Optimize CraftPlayer#canSee
++
+         return this.equals(entity) || entity.isVisibleByDefault() ^ this.invertedVisibilityEntities.containsKey(entity.getUniqueId()); // SPIGOT-7312: Can always see self
+     }
+ 
+     public boolean canSee(UUID uuid) {
++        // Paper start - Optimize CraftPlayer#canSee
++        if (!this.hasCanSee) {
++            return true;
++        }
++        // Paper end - Optimize CraftPlayer#canSee
++
+         org.bukkit.entity.Entity entity = getServer().getPlayer(uuid);
+         if (entity == null) {
+             entity = getServer().getEntity(uuid); // Also includes players, but check players first for efficiency
